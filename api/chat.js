@@ -69,4 +69,3 @@ Be friendly and helpful. Ask about their budget, vehicle type, and contact info 
     res.status(500).json({ error: error.message });
   }
 };
-
