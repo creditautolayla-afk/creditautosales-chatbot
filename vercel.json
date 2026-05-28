@@ -4,6 +4,10 @@
     {
       "src": "src/server.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
@@ -12,15 +16,10 @@
       "dest": "src/server.js"
     },
     {
-      "src": "/chat",
-      "dest": "src/widget.html"
-    },
-    {
       "src": "/(.*)",
       "dest": "public/index.html"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
+
+
