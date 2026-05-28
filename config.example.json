@@ -1,0 +1,27 @@
+{
+  "hillzdealer": {
+    "username": "YOUR_HILLZDEALER_USERNAME",
+    "password": "YOUR_HILLZDEALER_PASSWORD"
+  },
+  "zoho": {
+    "apiToken": "YOUR_ZOHO_CRM_API_TOKEN"
+  },
+  "claude": {
+    "apiKey": "YOUR_CLAUDE_API_KEY"
+  },
+  "dealership": {
+    "name": "Credit Auto Sales",
+    "address": "1275 finch ave w",
+    "phone": "4377576977",
+    "email": "creditautonow@gmail.com",
+    "website": "https://creditautosales.ca/",
+    "hours": {
+      "weekday": "10am-7pm",
+      "saturday": "10am-5pm"
+    },
+    "testDrive": {
+      "weekday": "11am-6pm",
+      "saturday": "11am-4pm"
+    }
+  }
+}

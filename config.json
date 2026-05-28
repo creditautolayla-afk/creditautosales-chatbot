@@ -1,0 +1,27 @@
+{
+  "hillzdealer": {
+    "username": "Laylah",
+    "password": "Motors100!"
+  },
+  "zoho": {
+    "apiToken": "1000.3cdf2408f0f56ae7e121794aaff0f60f.268e06747838be6ff8155f016238df6b"
+  },
+  "claude": {
+    "apiKey": "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"
+  },
+  "dealership": {
+    "name": "Credit Auto Sales",
+    "address": "1275 finch ave w",
+    "phone": "4377576977",
+    "email": "creditautonow@gmail.com",
+    "website": "https://creditautosales.ca/",
+    "hours": {
+      "weekday": "10am-7pm",
+      "saturday": "10am-5pm"
+    },
+    "testDrive": {
+      "weekday": "11am-6pm",
+      "saturday": "11am-4pm"
+    }
+  }
+}

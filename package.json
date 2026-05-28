@@ -1,0 +1,22 @@
+{
+  "name": "creditautosales-chatbot",
+  "version": "1.0.0",
+  "description": "AI-powered chatbot for Credit Auto Sales - inventory, financing, test drive booking",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test src/tests/*.test.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "axios": "^1.6.0",
+    "playwright": "^1.40.0",
+    "@anthropic-ai/sdk": "^0.25.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
