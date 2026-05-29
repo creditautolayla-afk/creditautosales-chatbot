@@ -57,6 +57,17 @@ Be friendly, professional, and helpful. Always try to understand what vehicle th
       },
       body: JSON.stringify({
         model:model: 'claude-opus-4-7',
+            console.log('Calling Claude API with key:', apiKey.substring(0, 20) + '...');
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-7',
         max_tokens: 1024,
         system: systemPrompt,
         messages: [
@@ -68,25 +79,20 @@ Be friendly, professional, and helpful. Always try to understand what vehicle th
       })
     });
 
-    const data = await response.json();
+    const responseText = await response.text();
+    console.log('API Response status:', response.status);
+    console.log('API Response:', responseText);
 
     if (!response.ok) {
-      console.error('Claude API error:', data);
       res.status(response.status).json({
-        error: data.error?.message || 'Claude API error'
+        error: 'Claude API error: ' + responseText.substring(0, 200)
       });
       return;
     }
 
+    const data = JSON.parse(responseText);
     const botResponse = data.content[0]?.text || 'No response';
 
     res.status(200).json({
       response: botResponse
     });
-  } catch (error) {
-    console.error('Chat error:', error);
-    res.status(500).json({
-      error: error.message || 'Internal server error'
-    });
-  }
-};
