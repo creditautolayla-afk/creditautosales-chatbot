@@ -56,7 +56,7 @@ Be friendly, professional, and helpful. Always try to understand what vehicle th
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20241022',
+        model:model: 'claude-opus-4-7',
         max_tokens: 1024,
         system: systemPrompt,
         messages: [
