@@ -1,136 +1,5 @@
-// Get inventory from cache or fetch fresh
-let inventoryCache = null;
-let inventoryCacheTime = 0;
-
-async function getInventory() {
-  const now = Date.now();
-  
-  // Return cached if fresh (within 30 minutes)
-  if (inventoryCache && (now - inventoryCacheTime) < 1800000) {
-    return inventoryCache;
-  }
-
-  try {
-    const response = await fetch(`${process.env.VERCEL_URL || 'http://localhost:3000'}/api/inventory`);
-    const data = await response.json();
-    inventoryCache = data.vehicles || [];
-    inventoryCacheTime = now;
-    return inventoryCache;
-  } catch (error) {
-    console.log('Error fetching inventory:', error.message);
-    return [];
-  }
-}
-
-// Zoho CRM functions
-async function saveLeadToZoho(leadData) {
-  if (!leadData.email && !leadData.phone) return null;
-
-  try {
-    const response = await fetch('https://www.zohoapis.com/crm/v2/Leads', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Zoho-oauthtoken ${process.env.ZOHO_API_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        data: [{
-          Last_Name: leadData.lastName || 'Customer',
-          First_Name: leadData.firstName || '',
-          Phone: leadData.phone || '',
-          Email: leadData.email || '',
-          Budget: leadData.budget || '',
-          Trade_in_Vehicle: leadData.tradeInVehicle || '',
-          Desired_Vehicle_Type: leadData.desiredVehicleType || '',
-          Lead_Source: 'Website Chatbot'
-        }]
-      })
-    });
-
-    const result = await response.json();
-    if (result.data && result.data[0]?.id) {
-      console.log('Lead saved:', result.data[0].id);
-      return result.data[0].id;
-    }
-  } catch (error) {
-    console.log('Error saving lead:', error.message);
-  }
-
-  return null;
-}
-
-async function bookTestDrive(leadId, vehicleInterest, dateTime) {
-  try {
-    const response = await fetch('https://www.zohoapis.com/crm/v2/Tasks', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Zoho-oauthtoken ${process.env.ZOHO_API_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        data: [{
-          Subject: `Test Drive - ${vehicleInterest}`,
-          Description: `Customer wants to test drive: ${vehicleInterest}\nScheduled for: ${dateTime}`,
-          What_id: leadId,
-          Due_Date: dateTime.split(' ')[0],
-          Status: 'Not Started',
-          Priority: 'High'
-        }]
-      })
-    });
-
-    const result = await response.json();
-    if (result.data && result.data[0]?.id) {
-      console.log('Test drive booked:', result.data[0].id);
-      return true;
-    }
-  } catch (error) {
-    console.log('Error booking test drive:', error.message);
-  }
-
-  return false;
-}
-
-// Extract customer data from conversation
-function extractCustomerData(fullText) {
-  const data = {
-    firstName: null,
-    lastName: null,
-    phone: null,
-    email: null,
-    budget: null,
-    vehicleType: null
-  };
-
-  // Email pattern
-  const emailMatch = fullText.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/);
-  if (emailMatch) data.email = emailMatch[0];
-
-  // Phone pattern (Canadian)
-  const phoneMatch = fullText.match(/\(?(\d{3})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})/);
-  if (phoneMatch) data.phone = `${phoneMatch[1]}-${phoneMatch[2]}-${phoneMatch[3]}`;
-
-  // Budget pattern
-  const budgetMatch = fullText.match(/(\$|budget.*?)(\d{1,3}(?:,?\d{3})*(?:\.\d{2})?)/i);
-  if (budgetMatch) data.budget = budgetMatch[2];
-
-  // Name patterns (look for "my name is X" or "I'm X")
-  const nameMatch = fullText.match(/(?:my name is|I'm|I am|call me)\s+([A-Z][a-z]+)(?:\s+([A-Z][a-z]+))?/i);
-  if (nameMatch) {
-    data.firstName = nameMatch[1];
-    data.lastName = nameMatch[2] || '';
-  }
-
-  // Vehicle type patterns
-  const vehicleMatch = fullText.match(/(?:looking for|interested in|want|need)\s+(?:a\s+)?([A-Za-z\s]+?)(?:\s+for|\.|$)/i);
-  if (vehicleMatch) {
-    data.vehicleType = vehicleMatch[1].trim();
-  }
-
-  return data;
-}
-
-export default async (req, res) => {
+export default async function handler(req, res) {
+  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -149,46 +18,57 @@ export default async (req, res) => {
     const { message, history } = req.body;
 
     if (!message) {
-      return res.status(400).json({ error: 'Message required' });
+      res.status(400).json({ error: 'Message is required' });
+      return;
     }
 
-    const apiKey = process.env.CLAUDE_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: 'API key not configured' });
+    // Get inventory (with caching)
+    let inventory = [];
+    try {
+      const inventoryRes = await fetch(
+        `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/api/inventory`,
+        { timeout: 5000 }
+      );
+      if (inventoryRes.ok) {
+        const data = await inventoryRes.json();
+        inventory = data.vehicles || [];
+      }
+    } catch (err) {
+      console.log('Inventory fetch failed, using fallback:', err.message);
     }
 
-    // Get inventory
-    const inventory = await getInventory();
-    
     // Build inventory context
-    const inventoryContext = inventory.length > 0
-      ? `Current inventory (samples): ${JSON.stringify(inventory.slice(0, 5))}`
-      : 'Inventory information is currently being updated.';
+    const inventoryContext =
+      inventory.length > 0
+        ? `\n\nCurrent Inventory:\n${inventory.map(v => `- ${v.year} ${v.make} ${v.model} - $${v.price} (${v.color})`).join('\n')}`
+        : '';
 
-    const systemPrompt = `You are an interactive AI assistant for Credit Auto Sales, a car dealership in Toronto.
+    // System prompt
+    const systemPrompt = `You are a helpful AI assistant for Credit Auto Sales, a car dealership located at 1275 Finch Ave W, Toronto, ON.
 
-## Dealership Info:
-- Address: 1275 Finch Ave W, Toronto, Ontario
-- Phone: (437) 757-6977
+Dealership Info:
+- Phone: 437-757-6977
 - Email: creditautonow@gmail.com
 - Website: https://creditautosales.ca/
 - Hours: Mon-Fri 10am-7pm, Sat 10am-5pm
 - Test Drive Hours: Mon-Fri 11am-6pm, Sat 11am-4pm
+- Financing: We offer flexible financing options for customers with various credit situations.
 
-## Your Role:
+Your responsibilities:
 1. Help customers find vehicles matching their needs
-2. Discuss financing options (we work with banks & lenders for all credit situations)
-3. Book test drives
-4. Answer questions about our dealership
-5. Be friendly and professional
+2. Provide financing guidance
+3. Book test drive appointments (available during test drive hours)
+4. Capture customer contact info when they naturally share it
+5. Be professional, friendly, and helpful
 
-${inventoryContext}
+When a customer mentions they're interested in a test drive, suggest available times and ask for their preferred date/time.
+When discussing financing, mention our website (creditautosales.ca) for the finance application.
 
-When customers share their contact info (name, phone, email), acknowledge it naturally. Be conversational. If they mention wanting a test drive, confirm the vehicle type and preferred date/time.`;
+${inventoryContext}`;
 
-    // Prepare messages for Claude
+    // Prepare messages for Claude API
     const messages = [
-      ...(history || []),
+      ...history,
       { role: 'user', content: message }
     ];
 
@@ -196,72 +76,132 @@ When customers share their contact info (name, phone, email), acknowledge it nat
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
+        'x-api-key': process.env.CLAUDE_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'claude-3-haiku-20240307',
+        model: 'claude-3-5-sonnet-20241022',
         max_tokens: 1024,
         system: systemPrompt,
         messages: messages
       })
     });
 
-    const data = await response.json();
-
     if (!response.ok) {
-      console.error('Claude error:', data);
-      return res.status(500).json({ error: data.error?.message || 'API error' });
+      const errorData = await response.json();
+      console.error('Claude error:', errorData);
+      res.status(500).json({ error: 'Claude API error', details: errorData });
+      return;
     }
 
-    const botResponse = data.content[0]?.text || 'No response';
+    const claudeResponse = await response.json();
+    const assistantMessage = claudeResponse.content[0].text;
 
-    // Extract customer data from full conversation
-    const fullConversation = messages.map(m => m.content).join(' ') + ' ' + botResponse;
-    const customerData = extractCustomerData(fullConversation);
+    // Extract customer data
+    const fullConversation = messages.map(m => m.content).join(' ') + ' ' + assistantMessage;
+
+    const phoneMatch = fullConversation.match(/(\d{3})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})/);
+    const phone = phoneMatch ? `${phoneMatch[1]}-${phoneMatch[2]}-${phoneMatch[3]}` : null;
+
+    const emailMatch = fullConversation.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/);
+    const email = emailMatch ? emailMatch[0] : null;
+
+    const budgetMatch = fullConversation.match(/\$[\d,]+|budget[:\s]+\$?[\d,]+/i);
+    const budget = budgetMatch ? budgetMatch[0] : null;
+
+    const nameMatch = fullConversation.match(/(?:my name is|I'm|I am)\s+([A-Za-z\s]+?)(?:\.|,|$)/i);
+    const name = nameMatch ? nameMatch[1].trim() : null;
+
+    const vehicleMatch = fullConversation.match(/(?:looking for|interested in|want|need)\s+(?:a\s+)?([A-Za-z\s]+?)(?:\.|,|$|and)/i);
+    const vehicleType = vehicleMatch ? vehicleMatch[1].trim() : null;
 
     let leadSaved = false;
     let testDriveBooked = false;
-    let leadId = null;
 
-    // Auto-save lead if we have contact info
-    if (customerData.email || customerData.phone) {
-      leadId = await saveLeadToZoho({
-        firstName: customerData.firstName,
-        lastName: customerData.lastName,
-        phone: customerData.phone,
-        email: customerData.email,
-        budget: customerData.budget,
-        desiredVehicleType: customerData.vehicleType
-      });
+    // Save to Zoho if we have phone or email
+    if ((phone || email) && process.env.ZOHO_API_TOKEN) {
+      try {
+        const leadPayload = {
+          data: [
+            {
+              Last_Name: name || 'Customer',
+              First_Name: name ? name.split(' ')[0] : 'Website',
+              Phone: phone || '',
+              Email: email || '',
+              Budget: budget || '',
+              Trade_in_Vehicle: '',
+              Desired_Vehicle_Type: vehicleType || '',
+              Lead_Source: 'Website Chatbot'
+            }
+          ]
+        };
 
-      if (leadId) {
-        leadSaved = true;
+        const zohoRes = await fetch('https://www.zohoapis.com/crm/v2/Leads', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Zoho-oauthtoken ${process.env.ZOHO_API_TOKEN}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(leadPayload),
+          timeout: 5000
+        });
+
+        if (zohoRes.ok) {
+          leadSaved = true;
+          console.log('Lead saved to Zoho');
+        } else {
+          console.log('Zoho lead save failed:', zohoRes.status);
+        }
+      } catch (err) {
+        console.log('Zoho error:', err.message);
       }
     }
 
-    // Auto-book test drive if mentioned
-    if (leadId && customerData.vehicleType && 
-        (botResponse.toLowerCase().includes('test drive') || message.toLowerCase().includes('test drive'))) {
-      // Try to extract date from conversation
-      const dateMatch = fullConversation.match(/(?:tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}\/\d{1,2})/i);
-      const testDate = dateMatch ? dateMatch[0] : 'TBD';
-      
-      testDriveBooked = await bookTestDrive(leadId, customerData.vehicleType, `${testDate} 1:00 PM`);
+    // Book test drive if mentioned
+    if (vehicleType && fullConversation.toLowerCase().includes('test drive') && process.env.ZOHO_API_TOKEN) {
+      try {
+        const taskPayload = {
+          data: [
+            {
+              Subject: `Test Drive: ${vehicleType}`,
+              Description: `Customer interested in test drive for ${vehicleType}. Phone: ${phone || 'Not provided'}. Email: ${email || 'Not provided'}`,
+              Status: 'Open',
+              Priority: 'High'
+            }
+          ]
+        };
+
+        const taskRes = await fetch('https://www.zohoapis.com/crm/v2/Tasks', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Zoho-oauthtoken ${process.env.ZOHO_API_TOKEN}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(taskPayload),
+          timeout: 5000
+        });
+
+        if (taskRes.ok) {
+          testDriveBooked = true;
+          console.log('Test drive task created in Zoho');
+        } else {
+          console.log('Zoho task creation failed:', taskRes.status);
+        }
+      } catch (err) {
+        console.log('Zoho task error:', err.message);
+      }
     }
 
-    res.json({
-      response: botResponse,
+    res.status(200).json({
+      response: assistantMessage,
       leadSaved,
       testDriveBooked,
-      usage: {
-        inputTokens: data.usage?.input_tokens || 0,
-        outputTokens: data.usage?.output_tokens || 0
-      }
+      usage: claudeResponse.usage
     });
+
   } catch (error) {
     console.error('Chat error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Internal server error', message: error.message });
   }
-};
+}
