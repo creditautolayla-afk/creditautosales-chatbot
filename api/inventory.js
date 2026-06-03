@@ -1,5 +1,4 @@
-const ACTUAL_INVENTORY = [
-  { year: 2017, make: 'Subaru', model: 'Forester', mileage: 173533, price: 12999 },
+ { year: 2017, make: 'Subaru', model: 'Forester', mileage: 173533, price: 12999 },
   { year: 2016, make: 'Audi', model: 'Q5', mileage: 149059, price: 11999 },
   { year: 2015, make: 'Chevrolet', model: 'Tahoe', mileage: 179555, price: 21999 },
   { year: 2004, make: 'Nissan', model: '350Z', mileage: 77796, price: 15999 },
@@ -108,3 +107,4 @@ export default async function handler(req, res) {
     res.status(500).json({ error: 'Internal server error', vehicles: [] });
   }
 }
+export const ACTUAL_INVENTORY = [
