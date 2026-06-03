@@ -1,3 +1,5 @@
+import { ACTUAL_INVENTORY } from './inventory.js';
+
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -22,9 +24,14 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Get inventory
-    let inventory = [];
-    try {
+    // Use inventory directly
+    const inventory = ACTUAL_INVENTORY || [];
+
+    // Build inventory context
+    const inventoryContext =
+      inventory.length > 0
+        ? `\n\nCURRENT INVENTORY (${inventory.length} vehicles):\n${inventory.map(v => `${v.year} ${v.make} ${v.model} - $${v.price} (${v.mileage} km)`).join('\n')}`
+        : '';
       const inventoryRes = await fetch(
         `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/api/inventory`
       );
