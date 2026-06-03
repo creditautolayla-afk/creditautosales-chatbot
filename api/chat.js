@@ -22,25 +22,24 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Get inventory (with caching)
+    // Get inventory
     let inventory = [];
     try {
       const inventoryRes = await fetch(
-        `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/api/inventory`,
-        { timeout: 5000 }
+        `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/api/inventory`
       );
       if (inventoryRes.ok) {
         const data = await inventoryRes.json();
         inventory = data.vehicles || [];
       }
     } catch (err) {
-      console.log('Inventory fetch failed, using fallback:', err.message);
+      console.log('Inventory fetch failed:', err.message);
     }
 
     // Build inventory context
     const inventoryContext =
       inventory.length > 0
-        ? `\n\nCURRENT INVENTORY (${inventory.length} vehicles):\n${inventory.map(v => `${v.year} ${v.make} ${v.model} - $${v.price.toLocaleString()} (${v.mileage.toLocaleString()} km)`).join('\n')}`
+        ? `\n\nCURRENT INVENTORY (${inventory.length} vehicles):\n${inventory.map(v => `${v.year} ${v.make} ${v.model} - $${v.price} (${v.mileage} km)`).join('\n')}`
         : '';
 
     // System prompt
