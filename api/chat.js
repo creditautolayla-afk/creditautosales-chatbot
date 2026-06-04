@@ -216,7 +216,7 @@ ${inventoryContext}`;
           ]
         };
 
-        const zohoRes = await fetch('https://www.zohoapis.com/crm/v2/Leads', {
+        const zohoRes = await fetch('https://www.zohoapis.ca/crm/v2/Leads', {
           method: 'POST',
           headers: {
             'Authorization': `Zoho-oauthtoken ${process.env.ZOHO_API_TOKEN}`,
@@ -251,7 +251,7 @@ ${inventoryContext}`;
           ]
         };
 
-        const taskRes = await fetch('https://www.zohoapis.com/crm/v2/Tasks', {
+        const taskRes = await fetch('https://www.zohoapis.ca/crm/v2/Tasks', {
           method: 'POST',
           headers: {
             'Authorization': `Zoho-oauthtoken ${process.env.ZOHO_API_TOKEN}`,
