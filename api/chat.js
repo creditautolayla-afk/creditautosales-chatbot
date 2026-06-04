@@ -133,14 +133,16 @@ DEALERSHIP INFO:
 📧 Email: creditautonow@gmail.com
 🌐 Website: creditautosales.ca
 ⏰ Hours: Monday-Friday 11am-6pm, Saturday 11am-4pm
-
 INSTRUCTIONS:
 1. ALWAYS check the inventory list below for customer vehicle requests
 2. If customer asks about a specific vehicle, search the inventory and provide year, make, model, and price
-3. Only provide phone/email when customer explicitly asks to speak with someone, wants to schedule a test drive, or if you can't find what they're looking for
-4. Be helpful, friendly, and professional. Keep responses brief.
-5. Use emojis naturally but avoid markdown/asterisks. Format lists with line breaks, not bullets.
-
+3. If customer wants to book a test drive:
+   - Ask for their name, phone, email, and preferred date/time
+   - Confirm the booking: "Great! I've booked your test drive for [DATE/TIME]. Our team will confirm at [PHONE]"
+   - Do NOT say "unfortunately I'm not able to book" - you ARE able to book
+4. Only provide phone/email when customer explicitly asks to speak with someone or if you can't find what they're looking for
+5. Be helpful, friendly, and professional. Keep responses brief.
+6. Use emojis naturally but avoid markdown/asterisks. Format lists with line breaks, not bullets.
 ${inventoryContext}`;
 
     // Prepare messages for Claude API
